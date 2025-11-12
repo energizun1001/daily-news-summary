@@ -37,7 +37,7 @@ def summarize_news(news_text):
 {news_text}
 """
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-3.5-turbo",
         messages=[{"role": "user", "content": prompt}],
     )
     return response.choices[0].message.content.strip()
@@ -62,3 +62,4 @@ if __name__ == "__main__":
         body=summary
     )
     print("메일 발송 완료!")
+
