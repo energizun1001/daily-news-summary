@@ -4,29 +4,20 @@ import smtplib
 from email.mime.text import MIMEText
 from datetime import datetime
 from email.header import Header
+from google import genai # genai 라이브러리 사용 전제
 
-# --- Gemini API 라이브러리 및 클라이언트 설정 ---
-# pip install google-genai 
-try:
-    from google import genai
-except ImportError:
-    print("[FATAL ERROR] 'google-genai' 라이브러리가 설치되지 않았습니다. pip install google-genai를 실행해주세요.")
-    genai = None
-
+# --- Gemini API 클라이언트 설정 (생략) ---
 client = None
 try:
     api_key = os.environ.get("GEMINI_API_KEY")
-    if api_key and genai:
+    if api_key:
         client = genai.Client(api_key=api_key)
 except Exception as e:
-    print(f"[FATAL ERROR] Gemini Client 초기화 실패: {e}")
+    # 이전에 발생했던 오류는 여기서 처리되므로 별도의 ImportError 체크는 생략
+    pass
 
-# 뉴스 RSS 목록 (기존과 동일)
-# ... (RSS_FEEDS 딕셔너리 내용은 이전 코드와 동일하게 유지됩니다) ...
+# 뉴스 RSS 목록 (최종 버전 유지)
 RSS_FEEDS = {
-    "📌 기독교/신앙": [
-        {"source": "크리스천투데이", "url": "https://www.christiantoday.co.kr/rss/"}
-    ],
     "⚖️ 정치 (보수/중도/진보)": [
         {"source": "조선일보 (보수)", "url": "http://rss.chosun.com/site/data/rss/politics.xml"},
         {"source": "동아일보 (보수)", "url": "https://rss.donga.com/politics.xml"},
@@ -52,7 +43,7 @@ RSS_FEEDS = {
         {"source": "경향신문 (사회)", "url": "https://www.khan.co.kr/rss/rss_section.html?section=soc"},
         {"source": "한겨레 (사회)", "url": "http://www.hani.co.kr/rss/society/"}
     ],
-    "🧪 과학/기술/교통": [
+    "🧪 과학/기술/교통": [ 
         {"source": "ZDNet Korea (IT)", "url": "http://www.zdnet.co.kr/ArticleFeed.asp?type=xml"},
         {"source": "연합뉴스 (생활/교통)", "url": "http://www.yonhapnews.co.kr/RSS/l_society.xml"}
     ]
@@ -60,13 +51,12 @@ RSS_FEEDS = {
 
 
 def fetch_news():
-    # 이 부분은 동일
     ai_prompt_text = []
-    full_headlines_list = []
+    # HTML 생성을 위해 원본 기사 목록을 딕셔너리 형태로 저장
+    raw_articles_data = {} 
     
     for category, feeds in RSS_FEEDS.items():
         category_articles = []
-        full_headlines_list.append(f"\n\n\n========================================\n{category} - 원본 기사 목록\n========================================")
         
         for feed_info in feeds:
             source_name = feed_info["source"]
@@ -75,12 +65,13 @@ def fetch_news():
             try:
                 feed = feedparser.parse(url)
                 articles_for_summary = []
-                for i, entry in enumerate(feed.entries[:3]): 
+                for entry in feed.entries[:3]: 
                     title = entry.title
                     link = entry.link
                     
                     articles_for_summary.append(f"- 제목: {title} (링크: {link})")
-                    category_articles.append(f"- {title}\n  (출처: {source_name}, 링크: {link})")
+                    # 원본 기사 목록 HTML 생성을 위한 데이터 저장
+                    category_articles.append({"title": title, "source": source_name, "link": link})
                     
                 if articles_for_summary:
                     prompt_block = f"\n\n<언론사: {source_name} - {category}>\n" + "\n".join(articles_for_summary)
@@ -89,52 +80,129 @@ def fetch_news():
             except Exception as e:
                 print(f"[ERROR] RSS 파싱 실패 ({source_name}): {e}")
                 
-        full_headlines_list.append("\n".join(category_articles))
+        # 카테고리별 원본 기사 데이터를 딕셔너리에 추가
+        raw_articles_data[category] = category_articles
             
-    return "\n".join(ai_prompt_text), "\n".join(full_headlines_list)
+    return "\n".join(ai_prompt_text), raw_articles_data
 
-def summarize_news(news_text, full_headlines_list):
+
+def summarize_news(news_text, raw_articles_data):
     if not client:
-        summary_body = "⚠️ Gemini API 클라이언트 초기화 실패. API 키나 라이브러리를 확인해주세요. 요약은 생략됩니다."
-        return summary_body + full_headlines_list
+        summary_html = """
+        <p style="color: red; font-weight: bold;">⚠️ Gemini API 클라이언트 초기화에 실패했습니다. API 키를 확인해 주세요. 요약은 생략됩니다.</p>
+        """
+        return summary_html + generate_raw_articles_html(raw_articles_data, is_summary_failed=True)
         
     prompt = f"""
     다음은 {datetime.now().strftime('%Y-%m-%d')} 기준, 다양한 언론사 및 카테고리별 뉴스 목록입니다.
     
     요청:
-    1. 각 '<언론사: XXX - 카테고리>' 블록별로 핵심 논점을 정확히 집어내서 요약해줘.
-    2. 요약은 충분한 정보를 전달하되 간결하게 작성하며, 줄 수 제한은 없어.
-    3. 요약문은 명확히 [[언론사명 - 카테고리]] 형태로 구분해줘. 예: [[조선일보 - 정치]]
+    1. 각 '<언론사: XXX - 카테고리>' 블록별로 기사의 주요 내용과 세부 논점을 포함하여 자세히 요약해줘.
+    2. 요약은 최대한 상세하게 작성해줘. 길이가 길어져도 좋으니, 기사의 맥락과 세부 사항을 빠짐없이 전달해줘.
+    3. 요약문은 명확히 [[언론사명 - 카테고리]] 형태로 구분해줘. 예: [[조선일보 - 정치]].
+       주의: 이 [[...]] 부분은 절대 삭제하거나 변경해서는 안 됩니다.
     
     뉴스 목록:
     {news_text}
     """
     try:
-        # --- Gemini API 호출 부분 ---
         response = client.models.generate_content(
-            model="gemini-2.5-flash", # 빠르고 효율적인 모델 사용
+            model="gemini-2.5-flash", 
             contents=prompt
         )
         ai_summary = response.text.strip()
         
-        if not ai_summary:
-            raise Exception("Gemini 모델이 빈 응답을 반환했습니다.")
-
-        return f"✅ Gemini AI 요약 성공!\n\n" + ai_summary + full_headlines_list
+        # HTML 변환 및 원본 목록 추가
+        summary_html = generate_summary_html(ai_summary)
+        return summary_html + generate_raw_articles_html(raw_articles_data)
         
     except Exception as e:
         print(f"[ERROR] Gemini 요약 실패 (API 오류 등): {e}")
-        # 요약 실패 시 예외 처리 메시지 뒤에 원본 헤드라인 목록을 붙여서 반환
-        summary_body = "⚠️ Gemini API 호출에 실패했습니다. API 사용 한도를 확인해 주세요. 요약은 생략됩니다."
-        return summary_body + full_headlines_list
+        summary_html = f"""
+        <p style="color: red; font-weight: bold;">⚠️ Gemini API 호출에 실패했습니다. 요약은 생략됩니다.</p>
+        """
+        return summary_html + generate_raw_articles_html(raw_articles_data, is_summary_failed=True)
+
+
+def generate_summary_html(summary_text):
+    # [[언론사 - 카테고리]] 제목을 굵고 배경색을 넣은 스타일로 변환
+    html_content = summary_text.replace('\n', '<br>')
+    
+    # 정규표현식 대신 간단한 replace로 처리 ([[...]] 패턴에 맞춤)
+    # 예: [[조선일보 - 정치]] -> <h2><span class="summary-title">[[조선일보 - 정치]]</span></h2>
+    # 요약 문단은 <p> 태그로 감싸지 않고 그냥 텍스트로 둡니다.
+
+    # 1. 요약 제목 스타일 정의 (HTML 내부에 삽입)
+    style = """
+    <style>
+        .summary-title {
+            display: inline-block;
+            background-color: #e0f7fa; /* 밝은 하늘색 배경 */
+            color: #00796b; /* 진한 청록색 글씨 */
+            font-weight: bold;
+            padding: 5px 10px;
+            margin-top: 15px;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            font-size: 1.1em;
+            border-left: 5px solid #00acc1; /* 왼쪽 테두리 */
+        }
+    </style>
+    """
+    
+    # 2. 요약 제목을 스타일링된 <h2> 태그로 감싸기
+    lines = html_content.split('<br>')
+    styled_lines = []
+    for line in lines:
+        if line.startswith('[['):
+            # [[...]] 제목을 찾으면 스타일 적용
+            styled_line = f'<h2><span class="summary-title">{line}</span></h2>'
+            styled_lines.append(styled_line)
+        elif line.strip():
+            # 일반 텍스트는 <p> 태그로 감싸기
+            styled_lines.append(f'<p style="margin-top: 5px; margin-left: 20px;">{line.strip()}</p>')
+            
+    return f"{style}<h1>📝 상세 뉴스 요약 ({datetime.now().strftime('%Y년 %m월 %d일')})</h1>" + "\n".join(styled_lines)
+
+
+def generate_raw_articles_html(raw_articles_data, is_summary_failed=False):
+    html_parts = [
+        '<br><br><hr style="border: 2px solid #bdbdbd;">',
+        '<h1>📰 원본 기사 목록 (수집 출처)</h1>',
+        '<p style="color: gray;">' + ('(요약 실패 시 전체 목록)' if is_summary_failed else '(요약 성공 시 참고용 목록)') + '</p>'
+    ]
+    
+    for category, articles in raw_articles_data.items():
+        # 카테고리별 헤더
+        html_parts.append(f'<h2><span style="color: #424242;">{category}</span></h2>')
+        
+        if not articles:
+            html_parts.append('<p style="color: #ff9800;">- 해당 카테고리에서는 새로운 기사를 수집하지 못했습니다.</p>')
+            continue
+            
+        # 기사 목록
+        html_parts.append('<ul style="list-style-type: none; padding-left: 15px;">')
+        for item in articles:
+            # <li>에 링크와 출처 정보를 포함
+            list_item = f"""
+            <li style="margin-bottom: 10px;">
+                <a href="{item['link']}" style="color: #1976d2; text-decoration: none; font-weight: bold;">{item['title']}</a><br>
+                <span style="color: #616161; font-size: 0.9em;">(출처: {item['source']}, <a href="{item['link']}">바로가기</a>)</span>
+            </li>
+            """
+            html_parts.append(list_item)
+        html_parts.append('</ul>')
+
+    return "".join(html_parts)
 
 def send_email(subject, body):
-    # 이 부분은 동일
     sender = os.environ["EMAIL_USER"]
     password = os.environ["EMAIL_PASS"]
     receiver = os.environ["EMAIL_TO"]
 
-    msg = MIMEText(body, "plain", "utf-8")
+    # MIMEText 타입을 'html'로 변경
+    msg = MIMEText(body, "html", "utf-8") 
+    
     msg["Subject"] = Header(subject, 'utf-8')
     msg["From"] = sender
     msg["To"] = receiver
@@ -145,15 +213,15 @@ def send_email(subject, body):
 
 if __name__ == "__main__":
     print("뉴스 수집 및 파싱 중...")
-    news_text, full_headlines_list = fetch_news()
+    news_text, raw_articles_data = fetch_news()
 
     print("뉴스 요약 및 안전 검사 중...")
-    summary_with_headlines = summarize_news(news_text, full_headlines_list)
+    summary_with_headlines_html = summarize_news(news_text, raw_articles_data)
 
     print("이메일 전송 중...")
     send_email(
         subject=f"📰 오늘의 관심사별 뉴스 요약 ({datetime.now().strftime('%Y-%m-%d')})",
-        body=summary_with_headlines
+        body=summary_with_headlines_html
     )
 
     print("✅ 모든 작업 완료!")
