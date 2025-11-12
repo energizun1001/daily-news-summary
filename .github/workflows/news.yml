@@ -3,7 +3,7 @@ name: Daily News Summary
 on:
   schedule:
     - cron: '0 21 * * *'  # UTC 21시 = 한국시간 새벽 6시
-  workflow_dispatch:       # 수동 실행 버튼
+  workflow_dispatch:  
 
 jobs:
   run:
