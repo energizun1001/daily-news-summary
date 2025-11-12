@@ -1,65 +1,67 @@
+import os
 import feedparser
 import smtplib
 from email.mime.text import MIMEText
 from openai import OpenAI
-from datetime import datetime
-import os
 
-# ==== 1. API 및 이메일 정보 ====
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-EMAIL_USER = os.getenv("EMAIL_USER")
-EMAIL_PASS = os.getenv("EMAIL_PASS")
-EMAIL_TO = os.getenv("EMAIL_TO")
+# OpenAI 클라이언트 초기화
+client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+# 뉴스 RSS 목록
+RSS_FEEDS = {
+    "기독교": "https://www.christiantoday.co.kr/rss/",
+    "정치": "https://rss.donga.com/politics.xml",
+    "경제": "https://rss.donga.com/economy.xml",
+    "사회": "https://rss.donga.com/society.xml",
+    "과학": "https://rss.donga.com/science.xml",
+    "교통": "https://rss.donga.com/national.xml",  # 교통 뉴스가 자주 포함됨
+}
 
-# ==== 2. 뉴스 RSS 피드 ====
-rss_urls = [
-    "https://rss.joins.com/joins_news_list.xml",  # 중앙일보
-    "https://www.hankyung.com/feed",              # 한국경제
-    "https://rss.donga.com/total.xml",            # 동아일보
-]
-
-def get_latest_news():
-    articles = []
-    for url in rss_urls:
+def fetch_news():
+    news = []
+    for category, url in RSS_FEEDS.items():
         feed = feedparser.parse(url)
-        for entry in feed.entries[:3]:
-            articles.append(f"{entry.title} ({entry.link})")
-    return "\n".join(articles)
+        for entry in feed.entries[:3]:  # 각 분야 3건씩
+            news.append(f"[{category}] {entry.title}\n{entry.link}")
+    return "\n\n".join(news)
 
-# ==== 3. ChatGPT 요약 ====
 def summarize_news(news_text):
-    prompt = f"""
-다음은 {datetime.now().strftime('%Y-%m-%d')} 한국 주요 뉴스 목록입니다.
-핵심 내용을 5줄 이내로 간결하게 요약해줘:
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "너는 오늘의 한국 뉴스를 간결하게 요약하는 기자야."},
+                {"role": "user", "content": f"다음 뉴스들을 5줄로 요약해줘:\n{news_text}"}
+            ],
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"[ERROR] 요약 실패: {e}")
+        # 요약 실패 시 헤드라인만 반환
+        return "⚠️ 요약 생성에 실패했습니다. 아래는 주요 헤드라인입니다:\n\n" + news_text
 
-{news_text}
-"""
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "user", "content": prompt}],
-    )
-    return response.choices[0].message.content.strip()
+def send_email(summary):
+    sender = os.environ["EMAIL_USER"]
+    password = os.environ["EMAIL_PASS"]
+    receiver = os.environ["EMAIL_RECEIVER"]
 
-# ==== 4. 이메일 발송 ====
-def send_email(subject, body):
-    msg = MIMEText(body, "plain", "utf-8")
-    msg["Subject"] = subject
-    msg["From"] = EMAIL_USER
-    msg["To"] = EMAIL_TO
+    msg = MIMEText(summary, "plain", "utf-8")
+    msg["Subject"] = "📰 오늘의 뉴스 요약"
+    msg["From"] = sender
+    msg["To"] = receiver
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-        smtp.login(EMAIL_USER, EMAIL_PASS)
+        smtp.login(sender, password)
         smtp.send_message(msg)
 
-# ==== 5. 실행 ====
 if __name__ == "__main__":
-    news = get_latest_news()
-    summary = summarize_news(news)
-    send_email(
-        subject=f"🗞 오늘의 뉴스 요약 ({datetime.now().strftime('%Y-%m-%d')})",
-        body=summary
-    )
-    print("메일 발송 완료!")
+    print("뉴스 수집 중...")
+    news = fetch_news()
 
+    print("요약 중...")
+    summary = summarize_news(news)
+
+    print("이메일 전송 중...")
+    send_email(summary)
+
+    print("✅ 완료!")
