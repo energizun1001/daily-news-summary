@@ -18,57 +18,55 @@ except Exception as e:
 
 # 뉴스 RSS 목록 (최종 버전 유지)
 RSS_FEEDS = {
-    # 🚨 주의: SBS/JTBC RSS는 모든 분야의 뉴스를 포함하는 경향이 있어 여러 카테고리에 중복 배치될 수 있습니다.
     "⚖️ 정치": [
-        {"source": "조선일보", "url": "https://www.chosun.com/arc/outboundfeeds/rss/category/politics/?outputType=xml"},
+        {"source": "조선일보", "url": "http://rss.chosun.com/site/data/rss/politics.xml"},
         {"source": "동아일보", "url": "https://rss.donga.com/politics.xml"},
         {"source": "국민일보", "url": "https://www.kmib.co.kr/rss/data/kmibPolRss.xml"},
         {"source": "한국일보", "url": "https://rss.hankookilbo.com/hankookilbo/rss/hankookilbo_politics.xml"},
         {"source": "한겨레", "url": "http://www.hani.co.kr/rss/politics/"},
-        {"source": "경향신문", "url": "https://www.khan.co.kr/rss/rssdata/politic_news.xml"}
+        {"source": "경향신문", "url": "https://www.khan.co.kr/rss/rss_section.html?section=pol"}
     ],
     "📈 경제": [
-        {"source": "조선일보", "https://www.chosun.com/arc/outboundfeeds/rss/category/economy/?outputType=xml"}
-        {"source": "한국경제", "url": "https://www.hankyung.com/feed/economy"},
+        {"source": "한국경제", "url": "https://www.hankyung.com/feed"},
         {"source": "동아일보", "url": "https://rss.donga.com/economy.xml"},
         {"source": "국민일보", "url": "https://www.kmib.co.kr/rss/data/kmibEcoRss.xml"},
         {"source": "한국일보", "url": "https://rss.hankookilbo.com/hankookilbo/rss/hankookilbo_economy.xml"},
-        {"source": "경향신문", "url": "https://www.khan.co.kr/rss/rssdata/economy_news.xml"},
-        {"source": "머니투데이", "url": "http://rss.mt.co.kr/mt_rss.xml?section=economy"},
+        {"source": "경향신문", "url": "https://www.khan.co.kr/rss/rss_section.html?section=eco"},
+        {"source": "머니투데이", "url": "http://rss.mt.co.kr/mt_rss.xml?section=economy"}
     ],
     "🧑‍🤝‍🧑 사회": [
-        {"source": "조선일보", "url": "https://www.chosun.com/arc/outboundfeeds/rss/category/national/?outputType=xml"},
+        {"source": "조선일보", "url": "http://rss.chosun.com/site/data/rss/rss_social.xml"},
         {"source": "동아일보", "url": "https://rss.donga.com/society.xml"},
         {"source": "국민일보", "url": "https://www.kmib.co.kr/rss/data/kmibSocRss.xml"},
         {"source": "한국일보", "url": "https://rss.hankookilbo.com/hankookilbo/rss/hankookilbo_society.xml"},
         {"source": "한겨레", "url": "http://www.hani.co.kr/rss/society/"},
-        {"source": "경향신문", "url": "https://www.khan.co.kr/rss/rssdata/society_news.xml"}
+        {"source": "경향신문", "url": "https://www.khan.co.kr/rss/rss_section.html?section=soc"}
     ],
     "🏘️ 부동산": [
         {"source": "매일경제", "url": "https://www.mk.co.kr/rss/30100041/"},
-        {"source": "한국경제", "url": "https://www.hankyung.com/feed/realestate"},
+        {"source": "한국경제", "url": "https://www.hankyung.com/feed"},
         {"source": "머니투데이", "url": "http://rss.mt.co.kr/mt_rss.xml?section=realestate"}, # 부동산 전용 피드로 추정
         {"source": "연합뉴스 (부동산)", "url": "http://www.yonhapnews.co.kr/RSS/l_economy.xml"}
     ],
     "🖼️ 문화": [
-        {"source": "조선일보", "url": "https://www.chosun.com/arc/outboundfeeds/rss/category/culture-life/?outputType=xml"},
+        {"source": "조선일보", "url": "http://rss.chosun.com/site/data/rss/rss_culture.xml"},
         {"source": "동아일보", "url": "https://rss.donga.com/culture.xml"},
         {"source": "한겨레", "url": "http://www.hani.co.kr/rss/culture/"}
     ],
     "🌎 국제": [
-        {"source": "조선일보", "url": "https://www.chosun.com/arc/outboundfeeds/rss/category/international/?outputType=xml"},
+        {"source": "조선일보", "url": "http://rss.chosun.com/site/data/rss/rss_international.xml"},
         {"source": "동아일보", "url": "https://rss.donga.com/international.xml"},
         {"source": "한국일보", "url": "https://rss.hankookilbo.com/hankookilbo/rss/hankookilbo_international.xml"},
         {"source": "한겨레", "url": "http://www.hani.co.kr/rss/international/"},
-        {"source": "경향신문", "url": "https://www.khan.co.kr/rss/rssdata/kh_world.xml"}
+        {"source": "경향신문", "url": "https://www.khan.co.kr/rss/rss_section.html?section=wor"}
     ],
-    "🧪 과학/교통": [
-        {"source": "한국철도", "url": "https://www.redaily.co.kr/rss/allArticle.xml"}, # IT/과학 피드로 활용
-        {"source": "경향신문", "url": "https://www.khan.co.kr/rss/rssdata/science_news.xml"}
+    "🧪 과학": [
+        {"source": "ZDNet Korea (IT)", "url": "http://www.zdnet.co.kr/ArticleFeed.asp?type=xml"}, # IT/과학 피드로 활용
+        {"source": "연합뉴스 (과학)", "url": "http://www.yonhapnews.co.kr/RSS/l_science.xml"}
     ],
     "💻 IT": [
         {"source": "ZDNet Korea", "url": "http://www.zdnet.co.kr/ArticleFeed.asp?type=xml"},
-        {"source": "한국경제 (IT)", "url": "https://www.hankyung.com/feed/it"}
+        {"source": "한국경제 (IT)", "url": "https://www.hankyung.com/it"}
     ]
 }
 
@@ -124,7 +122,6 @@ def summarize_news(news_text, raw_articles_data):
     2. 요약은 최대한 상세하게 작성해줘. 길이가 길어져도 좋으니, 기사의 맥락과 세부 사항을 빠짐없이 전달해줘.
     3. 요약문은 명확히 [[언론사명 - 카테고리]] 형태로 구분해줘. 예: [[조선일보 - 정치]].
        주의: 이 [[...]] 부분은 절대 삭제하거나 변경해서는 안 됩니다.
-    4. 새로운기사가 아니어도 좋으니까 일단 줘.
     
     뉴스 목록:
     {news_text}
@@ -249,5 +246,3 @@ if __name__ == "__main__":
     )
 
     print("✅ 모든 작업 완료!")
-
-
