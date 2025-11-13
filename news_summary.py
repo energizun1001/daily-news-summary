@@ -60,13 +60,13 @@ RSS_FEEDS = {
         {"source": "한겨레", "url": "http://www.hani.co.kr/rss/international/"},
         {"source": "경향신문", "url": "https://www.khan.co.kr/rss/rss_section.html?section=wor"}
     ],
-    "🧪 과학": [
-        {"source": "ZDNet Korea (IT)", "url": "http://www.zdnet.co.kr/ArticleFeed.asp?type=xml"}, # IT/과학 피드로 활용
-        {"source": "연합뉴스 (과학)", "url": "http://www.yonhapnews.co.kr/RSS/l_science.xml"}
+    "🧪 과학/교통": [
+        {"source": "한국철도", "url": "https://www.redaily.co.kr/rss/allArticle.xml"},
+        {"source": "경향신문", "url": "https://www.khan.co.kr/rss/rssdata/science_news.xml"}
     ],
     "💻 IT": [
         {"source": "ZDNet Korea", "url": "http://www.zdnet.co.kr/ArticleFeed.asp?type=xml"},
-        {"source": "한국경제 (IT)", "url": "https://www.hankyung.com/it"}
+        {"source": "한국경제 (IT)", "url": "https://www.hankyung.com/feed/it"}
     ]
 }
 
@@ -246,3 +246,4 @@ if __name__ == "__main__":
     )
 
     print("✅ 모든 작업 완료!")
+
